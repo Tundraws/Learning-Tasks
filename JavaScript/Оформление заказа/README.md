@@ -1,4 +1,6 @@
-# Форма оформления заказа
+<img width="767" height="774" alt="image" src="https://github.com/user-attachments/assets/dfd1fda4-d4de-4331-ae39-5eb6a1ec7c15" /># Форма оформления заказа
+
+![Пример]("C:\Screenshots\Zakaz.png")
 
 Простая веб-форма для оформления заказов с картой доставки.
 
