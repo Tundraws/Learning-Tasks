@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оформление заказа</title>
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=ваш_API-ключ&lang=ru_RU" type="text/javascript"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"],
+        input[type="tel"],
+        input[type="email"],
+        textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        .char-counter {
+            font-size: 12px;
+            color: #666;
+            text-align: right;
+        }
+        #map {
+            width: 100%;
+            height: 400px;
+            margin: 15px 0;
+            border: 1px solid #ddd;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .success {
+            color: green;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .required:after {
+            content: " *";
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Оформление заказа</h1>
+    
+    <div class="form-group">
+        <label for="fullname" class="required">ФИО</label>
+        <input type="text" id="fullname" required>
+    </div>
+    
+    <div class="form-group">
+        <label for="phone" class="required">Телефон</label>
+        <input type="tel" id="phone" required>
+    </div>
+    
+    <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email">
+    </div>
+    
+    <div class="form-group">
+        <label for="comment">Комментарий к заказу (макс. 500 символов)</label>
+        <textarea id="comment" maxlength="500"></textarea>
+        <div class="char-counter"><span id="char-count">0</span>/500</div>
+    </div>
+    
+    <div class="form-group">
+        <label class="required">Адрес доставки (отметьте на карте)</label>
+        <div id="map"></div>
+        <div id="coordinates"></div>
+    </div>
+    
+    <button id="submit-btn">Отправить</button>
+    <div id="message"></div>
+
+    <script>
+        // Инициализация карты
+        ymaps.ready(init);
+        let myMap;
+        let deliveryPlacemark;
+        let deliveryCoordinates = null;
+
+        function init() {
+            myMap = new ymaps.Map("map", {
+                center: [55.751574, 37.573856], // Москва
+                zoom: 10
+            });
+
+            // Обработчик клика по карте
+            myMap.events.add('click', function (e) {
+                const coords = e.get('coords');
+                
+                // Удаляем предыдущую метку, если есть
+                if (deliveryPlacemark) {
+                    myMap.geoObjects.remove(deliveryPlacemark);
+                }
+                
+                // Создаем новую метку
+                deliveryPlacemark = new ymaps.Placemark(coords, {
+                    balloonContent: 'Адрес доставки'
+                }, {
+                    preset: 'islands#redDotIcon'
+                });
+                
+                myMap.geoObjects.add(deliveryPlacemark);
+                deliveryCoordinates = coords;
+                
+                // Показываем координаты
+                document.getElementById('coordinates').innerHTML = 
+                    `Координаты: ${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}`;
+            });
+        }
+
+        // Ограничение на ввод только цифр в поле телефона
+        document.getElementById('phone').addEventListener('input', function(e) {
+            this.value = this.value.replace(/[^0-9]/g, '');
+        });
+
+        // Счетчик символов для комментария
+        document.getElementById('comment').addEventListener('input', function(e) {
+            const count = this.value.length;
+            document.getElementById('char-count').textContent = count;
+        });
+
+        // Валидация формы
+        document.getElementById('submit-btn').addEventListener('click', function() {
+            const fullname = document.getElementById('fullname').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const messageEl = document.getElementById('message');
+            
+            let errors = [];
+            
+            // Проверка обязательных полей
+            if (!fullname) errors.push("Не заполнено поле ФИО");
+            if (!phone) errors.push("Не заполнено поле Телефон");
+            if (!deliveryCoordinates) errors.push("Не отмечен адрес доставки на карте");
+            
+            // Проверка email
+            if (email && !email.includes('@')) {
+                errors.push("Email должен содержать символ @");
+            }
+            
+            // Вывод ошибок или успешного сообщения
+            if (errors.length > 0) {
+                messageEl.innerHTML = errors.map(error => 
+                    `<div class="error">${error}</div>`
+                ).join('');
+            } else {
+                messageEl.innerHTML = '<div class="success">Заказ оформлен!</div>';
+                // Здесь можно добавить отправку данных на сервер
+            }
+        });
+    </script>
+</body>
+</html>
