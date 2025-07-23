@@ -10,6 +10,11 @@ go run *.go
 ```
 Сервер запустится на http://localhost:8080
 ### 1. Открытие в браузере
+В браузере отключить cors:
+```bash
+# Для Chrome/Edge:
+chrome.exe --disable-web-security --user-data-dir="C:/temp-chrome"
+```
 Откройте в браузере:
 http://localhost:8080
 
