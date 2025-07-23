@@ -1,0 +1,255 @@
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Фильтр товаров</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .filter-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        .price-filter {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        input[type="number"] {
+            width: 100px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .no-data {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+        }
+        .error {
+            color: red;
+            margin-top: 5px;
+        }
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>Фильтр товаров</h1>
+    
+    <div class="filter-container">
+        <div class="price-filter">
+            <span>Цена от:</span>
+            <input type="number" id="min-price" min="0" value="0">
+            <span>до:</span>
+            <input type="number" id="max-price" min="0" value="10000">
+        </div>
+        <button id="refresh-btn">Обновить</button>
+    </div>
+    <div id="error-message" class="error"></div>
+    <div id="loading-message" class="loading"></div>
+    
+    <div id="table-container">
+        <!-- Таблица будет вставлена сюда динамически -->
+    </div>
+
+    <script>
+        // Элементы DOM
+        const minPriceInput = document.getElementById('min-price');
+        const maxPriceInput = document.getElementById('max-price');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const tableContainer = document.getElementById('table-container');
+        const errorMessage = document.getElementById('error-message');
+        const loadingMessage = document.getElementById('loading-message');
+        
+        // URL для получения данных
+        const API_URL = 'http://exercise.develop.maximaster.ru/service/products/';
+        
+        // Данные для базовой аутентификации
+        const USERNAME = 'cli';
+        const PASSWORD = '12344321';
+        
+        // Переменная для хранения данных
+        let productsData = [];
+        
+        // Загрузка данных при загрузке страницы
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchProducts();
+        });
+        
+        // Обработчик кнопки "Обновить"
+        refreshBtn.addEventListener('click', () => {
+            fetchProducts();
+        });
+        
+        // Функция для получения данных с сервера с базовой аутентификацией
+        async function fetchProducts() {
+            errorMessage.textContent = '';
+            loadingMessage.textContent = 'Загрузка данных...';
+            tableContainer.innerHTML = '';
+            
+            try {
+                // Валидация ввода
+                const minPrice = parseFloat(minPriceInput.value);
+                const maxPrice = parseFloat(maxPriceInput.value);
+                
+                if (isNaN(minPrice)) {
+                    throw new Error('Минимальная цена должна быть числом');
+                }
+                
+                if (isNaN(maxPrice)) {
+                    throw new Error('Максимальная цена должна быть числом');
+                }
+                
+                if (minPrice < 0) {
+                    throw new Error('Минимальная цена не может быть отрицательной');
+                }
+                
+                if (maxPrice < 0) {
+                    throw new Error('Максимальная цена не может быть отрицательной');
+                }
+                
+                if (maxPrice < minPrice) {
+                    throw new Error('Максимальная цена не может быть меньше минимальной');
+                }
+                
+                // Запрос данных с базовой аутентификацией
+                const headers = new Headers();
+                headers.set('Authorization', 'Basic ' + btoa(USERNAME + ":" + PASSWORD));
+                // const response = await fetch(API_URL, {
+                //     headers:{
+                //         'Authorization': 'Basic ' + btoa(USERNAME + ":" + PASSWORD),
+                //         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+                //         'Access-Control-Allow-Origin':'*'
+                        
+
+                //     },
+                //     mode: 'no-cors'
+                // });
+        //         const PROXY_URL = 'https://yacdn.org/proxy/';
+        // const API_URL = encodeURIComponent(
+        //     'http://exercise.develop.maximaster.ru/service/products/'
+        // );
+        
+        const response = await fetch(API_URL, {
+            // headers: {
+            //     'Authorization': USERNAME + ":" + PASSWORD,
+            //     'Accept': 'application/json'
+            // }
+        });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        throw new Error('Ошибка авторизации. Проверьте логин и пароль');
+                    } else {
+                        throw new Error(`Ошибка HTTP: ${response.status}`);
+                    }
+                }
+                
+                productsData = await response.json();
+                renderTable();
+                
+            } catch (error) {
+                errorMessage.textContent = error.message;
+                tableContainer.innerHTML = '';
+            } finally {
+                loadingMessage.textContent = '';
+            }
+        }
+        
+        // Функция для отрисовки таблицы
+        function renderTable() {
+            const minPrice = parseFloat(minPriceInput.value) || 0;
+            const maxPrice = parseFloat(maxPriceInput.value) || 0;
+            
+            // Фильтрация данных
+            let filteredProducts = productsData;
+            
+            // Если оба значения не нулевые, применяем фильтр
+            if (minPrice !== 0 || maxPrice !== 0) {
+                filteredProducts = productsData.filter(product => {
+                    return product.price >= minPrice && 
+                           (maxPrice === 0 || product.price <= maxPrice);
+                });
+            }
+            
+            // Если нет данных после фильтрации
+            if (filteredProducts.length === 0) {
+                tableContainer.innerHTML = '<div class="no-data">Нет данных, попадающих под условия фильтра</div>';
+                return;
+            }
+            
+            // Создание таблицы
+            let tableHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Название</th>
+                            <th>Количество</th>
+                            <th>Цена за единицу</th>
+                            <th>Сумма</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // Добавление строк с товарами
+            filteredProducts.forEach((product, index) => {
+                const total = product.price * product.quantity;
+                tableHTML += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${product.name}</td>
+                        <td>${product.quantity}</td>
+                        <td>${product.price.toLocaleString('ru-RU')}</td>
+                        <td>${total.toLocaleString('ru-RU')}</td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += `
+                    </tbody>
+                </table>
+            `;
+            
+            tableContainer.innerHTML = tableHTML;
+        }
+    </script>
+</body>
+</html>
