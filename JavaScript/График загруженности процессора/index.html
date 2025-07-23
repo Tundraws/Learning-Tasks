@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мониторинг загруженности процессора</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 20px;
+        }
+        .stats {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Мониторинг загруженности процессора</h1>
+    <div class="chart-container">
+        <canvas id="cpuChart"></canvas>
+    </div>
+    <div class="stats">
+        <p>Всего запросов: <span id="totalRequests">0</span></p>
+        <p>Ошибок: <span id="errorRequests" class="error">0</span> (<span id="errorPercentage" class="error">0</span>%)</p>
+        <p>Последнее обновление: <span id="lastUpdate">-</span></p>
+    </div>
+
+    <script>
+        // Инициализация графика
+        const ctx = document.getElementById('cpuChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Загруженность процессора (%)',
+                    data: [],
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        // Статистика
+        let totalRequests = 0;
+        let errorRequests = 0;
+        let lastValidValue = 0;
+
+        // Функция обновления данных
+        async function updateCpuUsage() {
+            try {
+                const response = await fetch('http://exercise.develop.maximaster.ru/service/cpu/');
+                const data = await response.text();
+                const cpuUsage = parseInt(data);
+                
+                totalRequests++;
+                const now = new Date();
+                const timeString = now.toLocaleTimeString();
+                
+                if (cpuUsage === 0) {
+                    errorRequests++;
+                    // Используем предыдущее значение при ошибке
+                    chart.data.labels.push(timeString);
+                    chart.data.datasets[0].data.push(lastValidValue);
+                } else {
+                    lastValidValue = cpuUsage;
+                    chart.data.labels.push(timeString);
+                    chart.data.datasets[0].data.push(cpuUsage);
+                }
+                
+                // Ограничиваем количество точек на графике (например, последние 20)
+                if (chart.data.labels.length > 20) {
+                    chart.data.labels.shift();
+                    chart.data.datasets[0].data.shift();
+                }
+                
+                chart.update();
+                updateStats();
+                document.getElementById('lastUpdate').textContent = timeString;
+            } catch (error) {
+                console.error('Ошибка при получении данных:', error);
+            }
+        }
+
+        // Функция обновления статистики
+        function updateStats() {
+            document.getElementById('totalRequests').textContent = totalRequests;
+            document.getElementById('errorRequests').textContent = errorRequests;
+            const errorPercentage = totalRequests > 0 ? (errorRequests / totalRequests * 100).toFixed(2) : 0;
+            document.getElementById('errorPercentage').textContent = errorPercentage;
+        }
+
+        // Первый запрос и установка интервала
+        updateCpuUsage();
+        setInterval(updateCpuUsage, 5000);
+    </script>
+</body>
+</html>
