@@ -30,6 +30,7 @@ http://localhost:8080
 ### Технологии
 Backend: Go (чистый net/http)
 
-Frontend: JavaScript (Fetch API) + HTML/CSS
+Frontend: JavaScript + HTML/CSS
 
-Внешнее API: maximaster.ru (базовая аутентификация)
+Внешнее API: maximaster.ru 
+
