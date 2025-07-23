@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Электронная таблица</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            touch-action: manipulation;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        .spreadsheet-wrapper {
+            display: flex;
+            align-items: flex-start;
+        }
+        .spreadsheet-container {
+            display: flex;
+            flex-direction: column;
+        }
+        table {
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        td {
+            border: 2px solid #000;
+            padding: 15px;
+            min-width: 50px;
+            height: 20px;
+            text-align: center;
+            position: relative;
+            font-weight: bold;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .cell-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .col-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-left: 10px;
+        }
+        .row-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .control-button {
+            background: #e0e0e0;
+            border: 1px solid black;
+            border-radius: 10%;
+            width: 40px;
+            height: 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .input-edit {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            border: 2px solid #4CAF50;
+            padding: 5px;
+            font-size: inherit;
+            text-align: center;
+            font-weight: bold;
+            outline: none;
+        }
+        @media (max-width: 600px) {
+            td {
+                padding: 10px;
+                min-width: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Электронная таблица</h1>
+    
+    <div class="spreadsheet-wrapper">
+        <div class="spreadsheet-container">
+            <table id="spreadsheet">
+                <tbody id="table-body">
+                    <tr>
+                        <td data-row="0" data-col="0"><div class="cell-content">1</div></td>
+                        <td data-row="0" data-col="1"><div class="cell-content">2</div></td>
+                        <td data-row="0" data-col="2"><div class="cell-content">3</div></td>
+                        <td data-row="0" data-col="3"><div class="cell-content">4</div></td>
+                        <td data-row="0" data-col="4"><div class="cell-content">5</div></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="row-controls">
+                <button class="control-button" id="add-row">+</button>
+                <button class="control-button" id="remove-row">-</button>
+            </div>
+        </div>
+        
+        <div class="col-controls">
+            <button class="control-button" id="add-col">+</button>
+            <button class="control-button" id="remove-col">-</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tableBody = document.getElementById('table-body');
+            const addColBtn = document.getElementById('add-col');
+            const removeColBtn = document.getElementById('remove-col');
+            const addRowBtn = document.getElementById('add-row');
+            const removeRowBtn = document.getElementById('remove-row');
+            
+            // Инициализация таблицы
+            let cols = 5;
+            let rows = 1;
+            let isMobile = false;
+            
+            // Проверка на мобильное устройство
+            function checkMobile() {
+                return (('ontouchstart' in window) ||
+                       (navigator.maxTouchPoints > 0) ||
+                       (navigator.msMaxTouchPoints > 0));
+            }
+            
+            isMobile = checkMobile();
+            
+            // Загрузка данных из LocalStorage
+            function loadFromStorage() {
+                const savedData = localStorage.getItem('spreadsheetData');
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    if (data.cols && data.rows && data.values) {
+                        cols = data.cols;
+                        rows = data.rows;
+                        return data.values;
+                    }
+                }
+                return null;
+            }
+            
+            // Сохранение данных в LocalStorage
+            function saveToStorage(values) {
+                const data = {
+                    cols: cols,
+                    rows: rows,
+                    values: values
+                };
+                localStorage.setItem('spreadsheetData', JSON.stringify(data));
+            }
+            
+            // Создание таблицы
+            function createTable() {
+                // Загружаем сохраненные данные
+                const savedValues = loadFromStorage();
+                const values = savedValues || [['1', '2', '3', '4', '5']];
+                
+                // Очищаем таблицу
+                tableBody.innerHTML = '';
+                
+                // Создаем строки с данными
+                for (let r = 0; r < rows; r++) {
+                    const tr = document.createElement('tr');
+                    
+                    // Ячейки с данными
+                    for (let c = 0; c < cols; c++) {
+                        const td = document.createElement('td');
+                        td.dataset.row = r;
+                        td.dataset.col = c;
+                        
+                        const cellDiv = document.createElement('div');
+                        cellDiv.className = 'cell-content';
+                        cellDiv.textContent = values[r] ? (values[r][c] || '') : '';
+                        
+                        td.appendChild(cellDiv);
+                        tr.appendChild(td);
+                    }
+                    
+                    tableBody.appendChild(tr);
+                }
+                
+                // Добавляем обработчики событий для редактирования ячеек
+                addCellEditListeners();
+                
+                // Сохраняем данные (если это новая таблица)
+                if (!savedValues) {
+                    saveToStorage(values);
+                }
+            }
+            
+            // Добавление обработчиков событий для редактирования ячеек
+            function addCellEditListeners() {
+                const cells = document.querySelectorAll('td[data-row]');
+                let lastTapTime = 0;
+                let tapTimeout;
+                
+                cells.forEach(cell => {
+                    // Для мобильных - одинарный тап
+                    if (isMobile) {
+                        cell.addEventListener('touchstart', function(e) {
+                            e.preventDefault();
+                            const currentTime = new Date().getTime();
+                            const tapLength = currentTime - lastTapTime;
+                            
+                            if (tapLength < 300 && tapLength > 0) {
+                                // Двойной тап - отменяем
+                                clearTimeout(tapTimeout);
+                                lastTapTime = 0;
+                            } else {
+                                // Одинарный тап
+                                tapTimeout = setTimeout(() => {
+                                    startEditingCell(this);
+                                    lastTapTime = 0;
+                                }, 200);
+                                lastTapTime = currentTime;
+                            }
+                        }, { passive: false });
+                        
+                        // Также добавляем обработчик click для гибридных устройств
+                        cell.addEventListener('click', function(e) {
+                            if (!isMobile) return;
+                            e.preventDefault();
+                            startEditingCell(this);
+                        });
+                    } else {
+                        // Для десктопов - двойной клик
+                        cell.addEventListener('dblclick', function() {
+                            startEditingCell(this);
+                        });
+                    }
+                });
+            }
+            
+            // Начало редактирования ячейки
+            function startEditingCell(cell) {
+                // Если уже редактируется - выходим
+                if (cell.querySelector('.input-edit')) return;
+                
+                const cellDiv = cell.querySelector('.cell-content');
+                const currentValue = cellDiv.textContent;
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'input-edit';
+                input.value = currentValue;
+                
+                cellDiv.style.visibility = 'hidden';
+                cell.appendChild(input);
+                
+                // Фокус с небольшим таймаутом для мобильных устройств
+                setTimeout(() => {
+                    input.focus();
+                    if (isMobile) {
+                        input.setAttribute('inputmode', 'text');
+                        // Для iOS
+                        input.style.fontSize = '16px';
+                    }
+                }, 50);
+                
+                // Завершение редактирования при потере фокуса или нажатии Enter
+                input.addEventListener('blur', finishEditing);
+                input.addEventListener('keyup', function(e) {
+                    if (e.key === 'Enter') {
+                        finishEditing.call(this);
+                    }
+                });
+                
+                function finishEditing() {
+                    const newValue = this.value;
+                    cellDiv.textContent = newValue;
+                    cellDiv.style.visibility = 'visible';
+                    cell.removeChild(this);
+                    
+                    // Обновляем данные и сохраняем
+                    const savedData = localStorage.getItem('spreadsheetData');
+                    if (savedData) {
+                        const data = JSON.parse(savedData);
+                        if (!data.values[row]) data.values[row] = [];
+                        data.values[row][col] = newValue;
+                        saveToStorage(data.values);
+                    }
+                }
+            }
+            
+            // Добавление столбца
+            function addColumn() {
+                cols++;
+                const savedData = localStorage.getItem('spreadsheetData');
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    data.values.forEach(row => row.push(''));
+                    data.cols = cols;
+                    saveToStorage(data.values);
+                } else {
+                    saveToStorage([['1', '2', '3', '4', '5', '']]);
+                }
+                createTable();
+            }
+            
+            // Удаление столбца
+            function removeColumn() {
+                if (cols <= 1) {
+                    alert('Нельзя удалить последний столбец!');
+                    return;
+                }
+                
+                const savedData = localStorage.getItem('spreadsheetData');
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    const hasData = data.values.some(row => row[row.length - 1] && row[row.length - 1].trim() !== '');
+                    
+                    if (hasData && !confirm('В удаляемом столбце есть данные. Удалить?')) {
+                        return;
+                    }
+                    
+                    cols--;
+                    data.values.forEach(row => row.pop());
+                    data.cols = cols;
+                    saveToStorage(data.values);
+                    createTable();
+                }
+            }
+            
+            // Добавление строки
+            function addRow() {
+                rows++;
+                const savedData = localStorage.getItem('spreadsheetData');
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    data.values.push(Array(cols).fill(''));
+                    data.rows = rows;
+                    saveToStorage(data.values);
+                } else {
+                    saveToStorage([['1', '2', '3', '4', '5'], Array(cols).fill('')]);
+                }
+                createTable();
+            }
+            
+            // Удаление строки
+            function removeRow() {
+                if (rows <= 1) {
+                    alert('Нельзя удалить последнюю строку!');
+                    return;
+                }
+                
+                const savedData = localStorage.getItem('spreadsheetData');
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    const lastRow = data.values[data.values.length - 1];
+                    const hasData = lastRow.some(cell => cell && cell.trim() !== '');
+                    
+                    if (hasData && !confirm('В удаляемой строке есть данные. Удалить?')) {
+                        return;
+                    }
+                    
+                    rows--;
+                    data.values.pop();
+                    data.rows = rows;
+                    saveToStorage(data.values);
+                    createTable();
+                }
+            }
+            
+            // Назначаем обработчики кнопок
+            addColBtn.addEventListener('click', addColumn);
+            removeColBtn.addEventListener('click', removeColumn);
+            addRowBtn.addEventListener('click', addRow);
+            removeRowBtn.addEventListener('click', removeRow);
+            
+            // Инициализируем таблицу
+            createTable();
+        });
+    </script>
+</body>
+</html>
